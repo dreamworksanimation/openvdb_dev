@@ -40,9 +40,8 @@
 #define OPENVDB_TOOLS_LEVEL_SET_TRACKER_HAS_BEEN_INCLUDED
 
 #include <tbb/parallel_for.h>
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
 #include <type_traits>
+#include <functional>
 #include <openvdb/Types.h>
 #include <openvdb/math/Math.h>
 #include <openvdb/math/FiniteDifference.h>
@@ -229,7 +228,7 @@ private:
         LevelSetTracker& mTracker;
         const MaskT*     mMask;
         const ValueType  mDt, mInvDx;
-        typename boost::function<void (Normalizer*, const LeafRange&)> mTask;
+        typename std::function<void (Normalizer*, const LeafRange&)> mTask;
     }; // Normalizer struct
 
     template<math::BiasedGradientScheme SpatialScheme, typename MaskT>
@@ -512,45 +511,51 @@ normalize()
         case math::TVD_RK1:
             // Perform one explicit Euler step: t1 = t0 + dt
             // Phi_t1(0) = Phi_t0(0) - dt * VdotG_t0(1)
-            mTask = boost::bind(&Normalizer::euler01, _1, _2);
-
+            mTask = [](Normalizer* normalizer, const LeafRange& range) {
+                return normalizer->euler01(range);
+            };
             // Cook and swap buffer 0 and 1 such that Phi_t1(0) and Phi_t0(1)
             this->cook("Normalizing level set using TVD_RK1", 1);
             break;
         case math::TVD_RK2:
             // Perform one explicit Euler step: t1 = t0 + dt
             // Phi_t1(1) = Phi_t0(0) - dt * VdotG_t0(1)
-            mTask = boost::bind(&Normalizer::euler01, _1, _2);
-
+            mTask = [](Normalizer* normalizer, const LeafRange& range) {
+                return normalizer->euler01(range);
+            };
             // Cook and swap buffer 0 and 1 such that Phi_t1(0) and Phi_t0(1)
             this->cook("Normalizing level set using TVD_RK1 (step 1 of 2)", 1);
 
             // Convex combine explicit Euler step: t2 = t0 + dt
             // Phi_t2(1) = 1/2 * Phi_t0(1) + 1/2 * (Phi_t1(0) - dt * V.Grad_t1(0))
-            mTask = boost::bind(&Normalizer::euler12, _1, _2);
-
+            mTask = [](Normalizer* normalizer, const LeafRange& range) {
+                return normalizer->euler12(range);
+            };
             // Cook and swap buffer 0 and 1 such that Phi_t2(0) and Phi_t1(1)
             this->cook("Normalizing level set using TVD_RK1 (step 2 of 2)", 1);
             break;
         case math::TVD_RK3:
             // Perform one explicit Euler step: t1 = t0 + dt
             // Phi_t1(1) = Phi_t0(0) - dt * VdotG_t0(1)
-            mTask = boost::bind(&Normalizer::euler01, _1, _2);
-
+            mTask = [](Normalizer* normalizer, const LeafRange& range) {
+                return normalizer->euler01(range);
+            };
             // Cook and swap buffer 0 and 1 such that Phi_t1(0) and Phi_t0(1)
             this->cook("Normalizing level set using TVD_RK3 (step 1 of 3)", 1);
 
             // Convex combine explicit Euler step: t2 = t0 + dt/2
             // Phi_t2(2) = 3/4 * Phi_t0(1) + 1/4 * (Phi_t1(0) - dt * V.Grad_t1(0))
-            mTask = boost::bind(&Normalizer::euler34, _1, _2);
-
+            mTask = [](Normalizer* normalizer, const LeafRange& range) {
+                return normalizer->euler34(range);
+            };
             // Cook and swap buffer 0 and 2 such that Phi_t2(0) and Phi_t1(2)
             this->cook("Normalizing level set using TVD_RK3 (step 2 of 3)", 2);
 
             // Convex combine explicit Euler step: t3 = t0 + dt
             // Phi_t3(2) = 1/3 * Phi_t0(1) + 2/3 * (Phi_t2(0) - dt * V.Grad_t2(0)
-            mTask = boost::bind(&Normalizer::euler13, _1, _2);
-
+            mTask = [](Normalizer* normalizer, const LeafRange& range) {
+                return normalizer->euler13(range);
+            };
             // Cook and swap buffer 0 and 2 such that Phi_t3(0) and Phi_t2(2)
             this->cook("Normalizing level set using TVD_RK3 (step 3 of 3)", 2);
             break;

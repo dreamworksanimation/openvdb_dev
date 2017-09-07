@@ -43,9 +43,9 @@
 #define OPENVDB_TOOLS_LEVELSETFILTER_HAS_BEEN_INCLUDED
 
 #include <assert.h>
-#include <boost/type_traits/is_floating_point.hpp>
 #include "LevelSetTracker.h"
 #include "Interpolation.h"
+#include <functional>
 
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
@@ -70,7 +70,7 @@ public:
     typedef typename GridType::TreeType                     TreeType;
     typedef typename TreeType::ValueType                    ValueType;
     typedef typename MaskType::ValueType                    AlphaType;
-    BOOST_STATIC_ASSERT(boost::is_floating_point<AlphaType>::value);
+    BOOST_STATIC_ASSERT(std::is_floating_point<AlphaType>::value);
 
     /// @brief Main constructor from a grid
     /// @param grid The level set to be filtered.
@@ -239,7 +239,7 @@ private:
 
         LevelSetFilter* mParent;
         const MaskType* mMask;
-        typename boost::function<void (Filter*, const LeafRange&)> mTask;
+        typename std::function<void (Filter*, const LeafRange&)> mTask;
     }; // end of private Filter struct
 
     AlphaType mMinMask, mMaxMask;
@@ -259,7 +259,11 @@ Filter::median(int width)
 
     mParent->leafs().rebuildAuxBuffers(1, mParent->getGrainSize()==0);
 
-    mTask = boost::bind(&Filter::median, _1, _2, std::max(1, width));
+    mTask = [width](Filter* f, const LeafRange& range) {
+
+        return f->median(range, width);
+    };
+
     this->cook(true);
 
     mParent->track();
@@ -300,13 +304,19 @@ Filter::box(int width)
 
     width = std::max(1, width);
 
-    mTask = boost::bind(&Filter::boxX, _1, _2, width);
+    mTask = [width](Filter* f, const LeafRange& range) {
+        return f->boxX(range, width);
+    };
     this->cook(true);
 
-    mTask = boost::bind(&Filter::boxY, _1, _2, width);
+    mTask = [width](Filter* f, const LeafRange& range) {
+        return f->boxY(range, width);
+    };
     this->cook(true);
 
-    mTask = boost::bind(&Filter::boxZ, _1, _2, width);
+    mTask = [width](Filter* f, const LeafRange& range) {
+        return f->boxZ(range, width);
+    };
     this->cook(true);
 
     mParent->track();
@@ -321,7 +331,9 @@ Filter::meanCurvature()
 
     mParent->leafs().rebuildAuxBuffers(1, mParent->getGrainSize()==0);
 
-    mTask = boost::bind(&Filter::meanCurvature, _1, _2);
+    mTask = [](Filter* f, const LeafRange& range) {
+        return f->meanCurvature(range);
+    };
     this->cook(true);
 
     mParent->track();
@@ -338,7 +350,9 @@ Filter::laplacian()
 
     mParent->leafs().rebuildAuxBuffers(1, mParent->getGrainSize()==0);
 
-    mTask = boost::bind(&Filter::laplacian, _1, _2);
+    mTask = [](Filter* f, const LeafRange& range) {
+        return f->laplacian(range);
+    };
     this->cook(true);
 
     mParent->track();
@@ -361,8 +375,11 @@ Filter::offset(ValueType value)
         const ValueType delta = openvdb::math::Min(offset-dist, CFL);
         dist += delta;
 
-        mTask = boost::bind(&Filter::offset, _1, _2, copysign(delta, value));
+        mTask = [delta, value](Filter* f, const LeafRange& range) {
+            return f->offset(range,copysign(delta, value) );
+        };
         this->cook(false);
+
 
         mParent->track();
     }

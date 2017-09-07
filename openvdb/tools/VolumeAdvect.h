@@ -41,8 +41,7 @@
 #define OPENVDB_TOOLS_VOLUME_ADVECT_HAS_BEEN_INCLUDED
 
 #include <tbb/parallel_for.h>
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
+#include <functional>
 #include <openvdb/Types.h>
 #include <openvdb/math/Math.h>
 #include <openvdb/util/NullInterrupter.h>
@@ -422,31 +421,55 @@ struct VolumeAdvection<VelocityGridT, StaggeredVelocity, InterrupterType>::Advec
         LeafManagerT manager(outGrid.tree(), mParent->spatialOrder()==2 ? 1 : 0);
         const LeafRangeT range = manager.leafRange(mParent->mGrainSize);
         const RealT dt = static_cast<RealT>(-time_step);//method of characteristics backtracks
+
         if (mParent->mIntegrator == Scheme::MAC) {
-            mTask = boost::bind(&Advect::rk,  _1, _2, dt, 0, mInGrid);//out[0]=forward 
+            mTask = [this, dt](Advect* advect, const LeafRangeT& range) { //out[0]=forward
+                return advect->rk(range, dt, 0, mInGrid);
+            };
             this->cook(range);
-            mTask = boost::bind(&Advect::rk,  _1, _2,-dt, 1, &outGrid);//out[1]=backward
+
+            mTask = [&outGrid, dt](Advect* advect, const LeafRangeT& range) { //out[1]=backward
+                return advect->rk(range, -dt, 1, &outGrid);
+            };
             this->cook(range);
-            mTask = boost::bind(&Advect::mac, _1, _2);//out[0] = out[0] + (in[0] - out[1])/2
+
+            mTask = [](Advect* advect, const LeafRangeT& range) { //out[0] = out[0] + (in[0] - out[1])/2
+                return advect->mac(range);
+            };
             this->cook(range);
         } else if (mParent->mIntegrator == Scheme::BFECC) {
-            mTask = boost::bind(&Advect::rk, _1, _2, dt, 0, mInGrid);//out[0]=forward
+            mTask = [this, dt](Advect* advect, const LeafRangeT& range) { //out[0]=forward
+                return advect->rk(range, dt, 0, mInGrid);
+            };
             this->cook(range);
-            mTask = boost::bind(&Advect::rk, _1, _2,-dt, 1, &outGrid);//out[1]=backward
+
+            mTask = [&outGrid, dt](Advect* advect, const LeafRangeT& range) { //out[1]=backward
+                return advect->rk(range, -dt, 1, &outGrid);
+            };
             this->cook(range);
-            mTask = boost::bind(&Advect::bfecc, _1, _2);//out[0] = (3*in[0] - out[1])/2
+
+            mTask = [](Advect* advect, const LeafRangeT& range) { //out[0] = (3*in[0] - out[1])/2
+                return advect->bfecc(range);
+            };
             this->cook(range);
-            mTask = boost::bind(&Advect::rk, _1, _2, dt, 1, &outGrid);//out[1]=forward
+
+            mTask = [&outGrid, dt](Advect* advect, const LeafRangeT& range) { //out[1]=forward
+                return advect->rk(range, dt, 1, &outGrid);
+            };
             this->cook(range);
             manager.swapLeafBuffer(1);// out[0] = out[1]
         } else {// SEMI, MID, RK3 and RK4
-            mTask = boost::bind(&Advect::rk, _1, _2,  dt, 0, mInGrid);//forward
+            mTask = [this, dt](Advect* advect, const LeafRangeT& range) { //forward
+                return advect->rk(range, dt, 0, mInGrid);
+            };
             this->cook(range);
         }
 
         if (mParent->spatialOrder()==2) manager.removeAuxBuffers();
         
-        mTask = boost::bind(&Advect::limiter, _1, _2, dt);// out[0] = limiter( out[0] ) 
+        mTask = [dt](Advect* advect, const LeafRangeT& range) { // out[0] = limiter( out[0] )
+            return advect->limiter(range, dt);
+        };
         this->cook(range);
         
         mParent->stop();
@@ -554,7 +577,7 @@ struct VolumeAdvection<VelocityGridT, StaggeredVelocity, InterrupterType>::Advec
     }
     // Public member data of the private Advect class
     
-    typename boost::function<void (Advect*, const LeafRangeT&)> mTask;
+    typename std::function<void (Advect*, const LeafRangeT&)> mTask;
     const VolumeGridT*        mInGrid;
     const VelocityIntegratorT mVelocityInt;// lightweight!
     const VolumeAdvection*    mParent;
