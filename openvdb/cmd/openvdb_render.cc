@@ -17,8 +17,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <boost/algorithm/string/predicate.hpp>
-#include <boost/algorithm/string/split.hpp>
+#include <openvdb/util/Name.h>
 #include <openvdb/PlatformConfig.h> // defines OPENEXR_DLL if required, must come before OpenEXR includes
 #include <OpenEXR/ImfChannelList.h>
 #include <OpenEXR/ImfFrameBuffer.h>
@@ -96,7 +95,7 @@ struct RenderOpts
         if (shader != "diffuse" && shader != "matte" && shader != "normal" && shader != "position"){
             return "expected diffuse, matte, normal or position shader, got \"" + shader + "\"";
         }
-        if (!boost::starts_with(camera, "ortho") && !boost::starts_with(camera, "persp")) {
+        if (!openvdb::util::starts_with(camera, "ortho") && !openvdb::util::starts_with(camera, "persp")) {
             return "expected perspective or orthographic camera, got \"" + camera + "\"";
         }
         if (compression != "none" && compression != "rle" && compression != "zip") {
@@ -233,7 +232,7 @@ saveEXR(const std::string& fname, const openvdb::tools::Film& film, const Render
     using RGBA = openvdb::tools::Film::RGBA;
 
     std::string filename = fname;
-    if (!boost::iends_with(filename, ".exr")) filename += ".exr";
+    if (!openvdb::util::ends_with(filename, ".exr")) filename += ".exr";
 
     if (opts.verbose) {
         std::cout << gProgName << ": writing " << filename << "..." << std::endl;
@@ -296,10 +295,10 @@ render(const GridType& grid, const std::string& imgFilename, const RenderOpts& o
     tools::Film film(opts.width, opts.height);
 
     std::unique_ptr<tools::BaseCamera> camera;
-    if (boost::starts_with(opts.camera, "persp")) {
+    if (openvdb::util::starts_with(opts.camera, "persp")) {
         camera.reset(new tools::PerspectiveCamera(film, opts.rotate, opts.translate,
             opts.focal, opts.aperture, opts.znear, opts.zfar));
-    } else if (boost::starts_with(opts.camera, "ortho")) {
+    } else if (openvdb::util::starts_with(opts.camera, "ortho")) {
         camera.reset(new tools::OrthographicCamera(film, opts.rotate, opts.translate,
             opts.frame, opts.znear, opts.zfar));
     } else {
@@ -376,12 +375,12 @@ render(const GridType& grid, const std::string& imgFilename, const RenderOpts& o
         std::cout << ostr.str() << std::endl;
     }
 
-    if (boost::iends_with(imgFilename, ".ppm")) {
+    if (openvdb::util::ends_with(imgFilename, ".ppm")) {
         // Save as PPM (fast, but large file size).
         std::string filename = imgFilename;
         filename.erase(filename.size() - 4); // strip .ppm extension
         film.savePPM(filename);
-    } else if (boost::iends_with(imgFilename, ".exr")) {
+    } else if (openvdb::util::ends_with(imgFilename, ".exr")) {
         // Save as EXR (slow, but small file size).
         saveEXR(imgFilename, film, opts);
     } else {
@@ -394,7 +393,7 @@ void
 strToSize(const std::string& s, size_t& x, size_t& y)
 {
     std::vector<std::string> elems;
-    boost::split(elems, s, boost::algorithm::is_any_of(",x"));
+    openvdb::util::split(elems, s, std::set<char>{',','x'});
     const size_t numElems = elems.size();
     if (numElems > 0) x = size_t(std::max(0, atoi(elems[0].c_str())));
     if (numElems > 1) y = size_t(std::max(0, atoi(elems[1].c_str())));
@@ -406,7 +405,7 @@ strToVec(const std::string& s)
 {
     std::vector<double> result;
     std::vector<std::string> elems;
-    boost::split(elems, s, boost::algorithm::is_any_of(","));
+    openvdb::util::split(elems, s, ',');
     for (size_t i = 0, N = elems.size(); i < N; ++i) {
         result.push_back(atof(elems[i].c_str()));
     }
