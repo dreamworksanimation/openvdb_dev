@@ -50,7 +50,7 @@ inline void split(ContainerT& out, const std::string& in, const char delim)
         old = ++pos;
     }
     // last element
-    out.insert(out.end(), in.substr(old, in.length()-1));
+    out.insert(out.end(), in.substr(old, in.length()-old));
 }
 
 template <typename ContainerT>
@@ -65,7 +65,7 @@ inline void split(ContainerT& out, const std::string& in, const std::set<char>& 
         old = ++pos;
     }
     // last element
-    out.insert(out.end(), in.substr(old, in.length()-1));
+    out.insert(out.end(), in.substr(old, in.length()-old));
 }
 
 inline bool starts_with(const std::string& in, const std::string& start)
@@ -80,24 +80,17 @@ inline bool ends_with(const std::string& in, const std::string& end)
     return std::equal(end.rbegin(), end.rend(), in.rbegin());
 }
 
-inline void ltrim(std::string& s)
+inline void trim(std::string& s)
 {
+    // ltrim
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
         return !std::isspace(ch);
     }));
-}
 
-inline void rtrim(std::string& s)
-{
+    // rtrim
     s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
         return !std::isspace(ch);
     }).base(), s.end());
-}
-
-inline void trim(std::string& s)
-{
-    ltrim(s);
-    rtrim(s);
 }
 
 inline void to_lower(std::string& s)
