@@ -87,7 +87,7 @@ parseRangeSpec(const std::string& rangeSpec, Options& opts)
 {
     // Split on the "-" character, of which there should be at most one.
     std::vector<std::string> rangeItems;
-    openvdb::util::split(rangeItems, rangeSpec, '-');
+    openvdb::string::split(rangeItems, rangeSpec, '-');
     if (rangeItems.empty() || rangeItems.size() > 2) throw std::runtime_error("");
 
     // Extract the "from" value, and default "to" to "from" and "step" to 1.
@@ -97,7 +97,7 @@ parseRangeSpec(const std::string& rangeSpec, Options& opts)
     if (rangeItems.size() > 1) {
         // Split on the ":" character, of which there should be at most one.
         const std::string item = rangeItems[1];
-        openvdb::util::split(rangeItems, item, ':');
+        openvdb::string::split(rangeItems, item, ':');
         if (rangeItems.empty() || rangeItems.size() > 2) throw std::runtime_error("");
 
         // Extract the "to" value.
@@ -283,7 +283,7 @@ main(int argc, char *argv[])
     // If -name was specified, generate a white list of names of grids to be processed.
     // Otherwise (if the white list is empty), process all grids of supported types.
     std::set<std::string> whitelist;
-    openvdb::util::split(whitelist, gridNameStr, ',');
+    openvdb::string::split(whitelist, gridNameStr, ',');
 
     // Process the input file.
     try {

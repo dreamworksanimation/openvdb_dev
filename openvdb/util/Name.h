@@ -37,7 +37,7 @@ writeString(std::ostream& os, const Name& name)
     os.write(&name[0], size);
 }
 
-namespace util {
+namespace string {
 
 template <typename ContainerT>
 inline void split(ContainerT& out, const std::string& in, const char delim)

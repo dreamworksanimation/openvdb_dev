@@ -79,8 +79,8 @@ stringToDScheme(const std::string& s)
     DScheme ret = UNKNOWN_DS;
 
     std::string str = s;
-    openvdb::util::trim(str);
-    openvdb::util::to_lower(str);
+    openvdb::string::trim(str);
+    openvdb::string::to_lower(str);
 
     if (str == dsSchemeToString(CD_2NDT)) {
         ret = CD_2NDT;
@@ -193,8 +193,8 @@ stringToBiasedGradientScheme(const std::string& s)
     BiasedGradientScheme ret = UNKNOWN_BIAS;
 
     std::string str = s;
-    openvdb::util::trim(str);
-    openvdb::util::to_lower(str);
+    openvdb::string::trim(str);
+    openvdb::string::to_lower(str);
 
     if (str == biasedGradientSchemeToString(FIRST_BIAS)) {
         ret = FIRST_BIAS;
@@ -258,8 +258,8 @@ stringToTemporalIntegrationScheme(const std::string& s)
     TemporalIntegrationScheme ret = UNKNOWN_TIS;
 
     std::string str = s;
-    openvdb::util::trim(str);
-    openvdb::util::to_lower(str);
+    openvdb::string::trim(str);
+    openvdb::string::to_lower(str);
 
     if (str == temporalIntegrationSchemeToString(TVD_RK1)) {
         ret = TVD_RK1;

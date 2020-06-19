@@ -696,50 +696,50 @@ TestUtil::testStringUtils()
 
         // split set
         results.insert("test");
-        openvdb::util::split(results, "", ' ');
+        openvdb::string::split(results, "", ' ');
         CPPUNIT_ASSERT(results.empty());
 
-        openvdb::util::split(results, "test", ' ');
+        openvdb::string::split(results, "test", ' ');
         CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
         CPPUNIT_ASSERT(results.count("test"));
 
-        openvdb::util::split(results, "t,est", ',');
+        openvdb::string::split(results, "t,est", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT(results.count("t"));
         CPPUNIT_ASSERT(results.count("est"));
 
-        openvdb::util::split(results, "t,est", '.');
+        openvdb::string::split(results, "t,est", '.');
         CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
         CPPUNIT_ASSERT(results.count("t,est"));
 
-        openvdb::util::split(results, ",test", ',');
+        openvdb::string::split(results, ",test", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT(results.count(""));
         CPPUNIT_ASSERT(results.count("test"));
 
-        openvdb::util::split(results, "test,", ',');
+        openvdb::string::split(results, "test,", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT(results.count("test"));
         CPPUNIT_ASSERT(results.count(""));
 
-        openvdb::util::split(results, "test,test", ',');
+        openvdb::string::split(results, "test,test", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
         CPPUNIT_ASSERT(results.count("test"));
 
         // split set multi delim
-        openvdb::util::split(results, "", std::set<char>{',', '.'});
+        openvdb::string::split(results, "", std::set<char>{',', '.'});
         CPPUNIT_ASSERT(results.empty());
 
-        openvdb::util::split(results, "test", std::set<char>{',', '.'});
+        openvdb::string::split(results, "test", std::set<char>{',', '.'});
         CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
         CPPUNIT_ASSERT(results.count("test"));
 
-        openvdb::util::split(results, ",test.", std::set<char>{',', '.'});
+        openvdb::string::split(results, ",test.", std::set<char>{',', '.'});
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT(results.count(""));
         CPPUNIT_ASSERT(results.count("test"));
 
-        openvdb::util::split(results, "t,e.st,test", std::set<char>{',', '.'});
+        openvdb::string::split(results, "t,e.st,test", std::set<char>{',', '.'});
         CPPUNIT_ASSERT_EQUAL(size_t(4), results.size());
         CPPUNIT_ASSERT(results.count("t"));
         CPPUNIT_ASSERT(results.count("e"));
@@ -752,52 +752,52 @@ TestUtil::testStringUtils()
 
         // split vector
         results.emplace_back("test");
-        openvdb::util::split(results, "", ' ');
+        openvdb::string::split(results, "", ' ');
         CPPUNIT_ASSERT(results.empty());
 
-        openvdb::util::split(results, "test", ' ');
+        openvdb::string::split(results, "test", ' ');
         CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
         CPPUNIT_ASSERT("test" == results.front());
 
-        openvdb::util::split(results, "t,est", ',');
+        openvdb::string::split(results, "t,est", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT("t" == results.front());
         CPPUNIT_ASSERT("est" == results.back());
 
-        openvdb::util::split(results, "t,est", '.');
+        openvdb::string::split(results, "t,est", '.');
         CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
         CPPUNIT_ASSERT("t,est" == results.front());
 
-        openvdb::util::split(results, ",test", ',');
+        openvdb::string::split(results, ",test", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT("" == results.front());
         CPPUNIT_ASSERT("test" == results.back());
 
-        openvdb::util::split(results, "test,", ',');
+        openvdb::string::split(results, "test,", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT("test" == results.front());
         CPPUNIT_ASSERT("" == results.back());
 
-        openvdb::util::split(results, "test,test", ',');
+        openvdb::string::split(results, "test,test", ',');
         CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
         CPPUNIT_ASSERT("test" == results.front());
         CPPUNIT_ASSERT("test" == results.back());
 
         // split vector multi delim
-        openvdb::util::split(results, "", std::set<char>{',', '.'});
+        openvdb::string::split(results, "", std::set<char>{',', '.'});
         CPPUNIT_ASSERT(results.empty());
 
-        openvdb::util::split(results, "test", std::set<char>{',', '.'});
+        openvdb::string::split(results, "test", std::set<char>{',', '.'});
         CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
         CPPUNIT_ASSERT("test" == results.front());
 
-        openvdb::util::split(results, ",test.", std::set<char>{',', '.'});
+        openvdb::string::split(results, ",test.", std::set<char>{',', '.'});
         CPPUNIT_ASSERT_EQUAL(size_t(3), results.size());
         CPPUNIT_ASSERT("" == results[0]);
         CPPUNIT_ASSERT("test" == results[1]);
         CPPUNIT_ASSERT("" == results[2]);
 
-        openvdb::util::split(results, "t,e.st,test", std::set<char>{',', '.'});
+        openvdb::string::split(results, "t,e.st,test", std::set<char>{',', '.'});
         CPPUNIT_ASSERT_EQUAL(size_t(4), results.size());
         CPPUNIT_ASSERT("t" == results[0]);
         CPPUNIT_ASSERT("e" == results[1]);
@@ -807,39 +807,39 @@ TestUtil::testStringUtils()
 
     // starts_with
 
-    CPPUNIT_ASSERT(openvdb::util::starts_with("", ""));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("", ""));
     // matches behaviour of boost::algorithm::starts_with
-    CPPUNIT_ASSERT(openvdb::util::starts_with("a", ""));
-    CPPUNIT_ASSERT(!openvdb::util::starts_with("a", "a "));
-    CPPUNIT_ASSERT(!openvdb::util::starts_with("", "a"));
-    CPPUNIT_ASSERT(openvdb::util::starts_with("a", "a"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("a", ""));
+    CPPUNIT_ASSERT(!openvdb::string::starts_with("a", "a "));
+    CPPUNIT_ASSERT(!openvdb::string::starts_with("", "a"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("a", "a"));
 
-    CPPUNIT_ASSERT(openvdb::util::starts_with("foo bar", "f"));
-    CPPUNIT_ASSERT(openvdb::util::starts_with("foo bar", "foo"));
-    CPPUNIT_ASSERT(openvdb::util::starts_with("foo bar", "foo "));
-    CPPUNIT_ASSERT(openvdb::util::starts_with("foo bar", "foo bar"));
-    CPPUNIT_ASSERT(!openvdb::util::starts_with("foo bar", "bar"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "f"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "foo"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "foo "));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "foo bar"));
+    CPPUNIT_ASSERT(!openvdb::string::starts_with("foo bar", "bar"));
 
     // ends_with
 
-    CPPUNIT_ASSERT(openvdb::util::ends_with("", ""));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("", ""));
     // matches behaviour of boost::algorithm::iends_with
-    CPPUNIT_ASSERT(openvdb::util::ends_with("a", ""));
-    CPPUNIT_ASSERT(!openvdb::util::ends_with("a", "a "));
-    CPPUNIT_ASSERT(!openvdb::util::ends_with("", "a"));
-    CPPUNIT_ASSERT(openvdb::util::ends_with("a", "a"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("a", ""));
+    CPPUNIT_ASSERT(!openvdb::string::ends_with("a", "a "));
+    CPPUNIT_ASSERT(!openvdb::string::ends_with("", "a"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("a", "a"));
 
-    CPPUNIT_ASSERT(openvdb::util::ends_with("foo bar", "r"));
-    CPPUNIT_ASSERT(openvdb::util::ends_with("foo bar", "bar"));
-    CPPUNIT_ASSERT(openvdb::util::ends_with("foo bar", " bar"));
-    CPPUNIT_ASSERT(openvdb::util::ends_with("foo bar", "foo bar"));
-    CPPUNIT_ASSERT(!openvdb::util::ends_with("foo bar", "foo"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", "r"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", "bar"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", " bar"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", "foo bar"));
+    CPPUNIT_ASSERT(!openvdb::string::ends_with("foo bar", "foo"));
 
 
     // trim
 
     auto trim = [](const std::string& s) -> std::string {
-        std::string r = s; openvdb::util::trim(r); return r;
+        std::string r = s; openvdb::string::trim(r); return r;
     };
 
     CPPUNIT_ASSERT("" == trim(""));
@@ -860,7 +860,7 @@ TestUtil::testStringUtils()
     // to lower
 
     auto to_lower = [](const std::string& s) -> std::string {
-        std::string r = s; openvdb::util::to_lower(r); return r;
+        std::string r = s; openvdb::string::to_lower(r); return r;
     };
 
     CPPUNIT_ASSERT("" == to_lower(""));

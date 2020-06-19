@@ -78,7 +78,7 @@ GridDescriptor::read(std::istream &is)
 
     // Read in the grid type.
     mGridType = readString(is);
-    if (openvdb::util::ends_with(mGridType, HALF_FLOAT_TYPENAME_SUFFIX)) {
+    if (openvdb::string::ends_with(mGridType, HALF_FLOAT_TYPENAME_SUFFIX)) {
         mSaveFloatAsHalf = true;
         mGridType.resize(mGridType.size() - std::strlen(HALF_FLOAT_TYPENAME_SUFFIX));
     }

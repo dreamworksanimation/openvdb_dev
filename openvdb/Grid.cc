@@ -126,8 +126,8 @@ GridBase::stringToGridClass(const std::string& s)
 {
     GridClass ret = GRID_UNKNOWN;
     std::string str = s;
-    openvdb::util::trim(str);
-    openvdb::util::to_lower(str);
+    openvdb::string::trim(str);
+    openvdb::string::to_lower(str);
     if (str == gridClassToString(GRID_LEVEL_SET)) {
         ret = GRID_LEVEL_SET;
     } else if (str == gridClassToString(GRID_FOG_VOLUME)) {
@@ -200,8 +200,8 @@ GridBase::stringToVecType(const std::string& s)
 {
     VecType ret = VEC_INVARIANT;
     std::string str = s;
-    openvdb::util::trim(str);
-    openvdb::util::to_lower(str);
+    openvdb::string::trim(str);
+    openvdb::string::to_lower(str);
     if (str == vecTypeToString(VEC_COVARIANT)) {
         ret = VEC_COVARIANT;
     } else if (str == vecTypeToString(VEC_COVARIANT_NORMALIZE)) {
