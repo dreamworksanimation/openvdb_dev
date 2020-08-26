@@ -12,6 +12,7 @@
 #include <openvdb/util/CpuTimer.h>
 #include <openvdb/util/PagedArray.h>
 #include <openvdb/util/Formats.h>
+#include <openvdb/util/Name.h>
 
 #include <chrono>
 #include <iostream>
@@ -33,12 +34,14 @@ public:
     CPPUNIT_TEST(testCpuTimer);
     CPPUNIT_TEST(testPagedArray);
     CPPUNIT_TEST(testPagedArrayPushBack);
+    CPPUNIT_TEST(testStringUtils);
     CPPUNIT_TEST_SUITE_END();
 
     void testCpuTimer();
     void testFormats();
     void testPagedArray();
     void testPagedArrayPushBack();
+    void testStringUtils();
 
     using RangeT = tbb::blocked_range<size_t>;
 
@@ -683,4 +686,186 @@ TestUtil::testPagedArray()
             for (int i=0; i<100000; ++i) CPPUNIT_ASSERT_EQUAL(i, array[i]);
         }
     }
+}
+
+void
+TestUtil::testStringUtils()
+{
+    {
+        std::set<std::string> results;
+
+        // split set
+        results.insert("test");
+        openvdb::string::split(results, "", ' ');
+        CPPUNIT_ASSERT(results.empty());
+
+        openvdb::string::split(results, "test", ' ');
+        CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
+        CPPUNIT_ASSERT(results.count("test"));
+
+        openvdb::string::split(results, "t,est", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT(results.count("t"));
+        CPPUNIT_ASSERT(results.count("est"));
+
+        openvdb::string::split(results, "t,est", '.');
+        CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
+        CPPUNIT_ASSERT(results.count("t,est"));
+
+        openvdb::string::split(results, ",test", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT(results.count(""));
+        CPPUNIT_ASSERT(results.count("test"));
+
+        openvdb::string::split(results, "test,", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT(results.count("test"));
+        CPPUNIT_ASSERT(results.count(""));
+
+        openvdb::string::split(results, "test,test", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
+        CPPUNIT_ASSERT(results.count("test"));
+
+        // split set multi delim
+        openvdb::string::split(results, "", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT(results.empty());
+
+        openvdb::string::split(results, "test", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
+        CPPUNIT_ASSERT(results.count("test"));
+
+        openvdb::string::split(results, ",test.", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT(results.count(""));
+        CPPUNIT_ASSERT(results.count("test"));
+
+        openvdb::string::split(results, "t,e.st,test", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT_EQUAL(size_t(4), results.size());
+        CPPUNIT_ASSERT(results.count("t"));
+        CPPUNIT_ASSERT(results.count("e"));
+        CPPUNIT_ASSERT(results.count("st"));
+        CPPUNIT_ASSERT(results.count("test"));
+    }
+
+    {
+        std::vector<std::string> results;
+
+        // split vector
+        results.emplace_back("test");
+        openvdb::string::split(results, "", ' ');
+        CPPUNIT_ASSERT(results.empty());
+
+        openvdb::string::split(results, "test", ' ');
+        CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
+        CPPUNIT_ASSERT("test" == results.front());
+
+        openvdb::string::split(results, "t,est", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT("t" == results.front());
+        CPPUNIT_ASSERT("est" == results.back());
+
+        openvdb::string::split(results, "t,est", '.');
+        CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
+        CPPUNIT_ASSERT("t,est" == results.front());
+
+        openvdb::string::split(results, ",test", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT("" == results.front());
+        CPPUNIT_ASSERT("test" == results.back());
+
+        openvdb::string::split(results, "test,", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT("test" == results.front());
+        CPPUNIT_ASSERT("" == results.back());
+
+        openvdb::string::split(results, "test,test", ',');
+        CPPUNIT_ASSERT_EQUAL(size_t(2), results.size());
+        CPPUNIT_ASSERT("test" == results.front());
+        CPPUNIT_ASSERT("test" == results.back());
+
+        // split vector multi delim
+        openvdb::string::split(results, "", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT(results.empty());
+
+        openvdb::string::split(results, "test", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT_EQUAL(size_t(1), results.size());
+        CPPUNIT_ASSERT("test" == results.front());
+
+        openvdb::string::split(results, ",test.", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT_EQUAL(size_t(3), results.size());
+        CPPUNIT_ASSERT("" == results[0]);
+        CPPUNIT_ASSERT("test" == results[1]);
+        CPPUNIT_ASSERT("" == results[2]);
+
+        openvdb::string::split(results, "t,e.st,test", std::set<char>{',', '.'});
+        CPPUNIT_ASSERT_EQUAL(size_t(4), results.size());
+        CPPUNIT_ASSERT("t" == results[0]);
+        CPPUNIT_ASSERT("e" == results[1]);
+        CPPUNIT_ASSERT("st" == results[2]);
+        CPPUNIT_ASSERT("test" == results[3]);
+    }
+
+    // starts_with
+
+    CPPUNIT_ASSERT(openvdb::string::starts_with("", ""));
+    // matches behaviour of boost::algorithm::starts_with
+    CPPUNIT_ASSERT(openvdb::string::starts_with("a", ""));
+    CPPUNIT_ASSERT(!openvdb::string::starts_with("a", "a "));
+    CPPUNIT_ASSERT(!openvdb::string::starts_with("", "a"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("a", "a"));
+
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "f"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "foo"));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "foo "));
+    CPPUNIT_ASSERT(openvdb::string::starts_with("foo bar", "foo bar"));
+    CPPUNIT_ASSERT(!openvdb::string::starts_with("foo bar", "bar"));
+
+    // ends_with
+
+    CPPUNIT_ASSERT(openvdb::string::ends_with("", ""));
+    // matches behaviour of boost::algorithm::iends_with
+    CPPUNIT_ASSERT(openvdb::string::ends_with("a", ""));
+    CPPUNIT_ASSERT(!openvdb::string::ends_with("a", "a "));
+    CPPUNIT_ASSERT(!openvdb::string::ends_with("", "a"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("a", "a"));
+
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", "r"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", "bar"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", " bar"));
+    CPPUNIT_ASSERT(openvdb::string::ends_with("foo bar", "foo bar"));
+    CPPUNIT_ASSERT(!openvdb::string::ends_with("foo bar", "foo"));
+
+
+    // trim
+
+    auto trim = [](const std::string& s) -> std::string {
+        std::string r = s; openvdb::string::trim(r); return r;
+    };
+
+    CPPUNIT_ASSERT("" == trim(""));
+    CPPUNIT_ASSERT("" == trim(" "));
+    CPPUNIT_ASSERT("" == trim("\t"));
+    CPPUNIT_ASSERT("" == trim("\r"));
+    CPPUNIT_ASSERT("" == trim("\f"));
+    CPPUNIT_ASSERT("" == trim("\n"));
+    CPPUNIT_ASSERT("" == trim("\v"));
+
+    CPPUNIT_ASSERT("foo" == trim(" foo"));
+    CPPUNIT_ASSERT("foo" == trim("foo "));
+    CPPUNIT_ASSERT("foo" == trim(" foo "));
+    CPPUNIT_ASSERT("foo" == trim("  foo  "));
+    CPPUNIT_ASSERT("foo bar" == trim("\vfoo bar\t"));
+    CPPUNIT_ASSERT("foo\nbar" == trim("\nfoo\nbar\n"));
+
+    // to lower
+
+    auto to_lower = [](const std::string& s) -> std::string {
+        std::string r = s; openvdb::string::to_lower(r); return r;
+    };
+
+    CPPUNIT_ASSERT("" == to_lower(""));
+    CPPUNIT_ASSERT("a" == to_lower("a"));
+    CPPUNIT_ASSERT("\t" == to_lower("\t"));
+    CPPUNIT_ASSERT("a" == to_lower("A"));
+    CPPUNIT_ASSERT("foo bar" == to_lower("fOo Bar"));
 }
