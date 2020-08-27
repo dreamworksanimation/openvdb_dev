@@ -270,6 +270,7 @@ public:
 
     Index32 leafCount() const;
     void nodeCount(std::vector<Index32> &vec) const;
+    void activeTileCount(std::vector<Index32>& vec) const;
     Index32 nonLeafCount() const;
     Index32 childCount() const;
     Index64 onVoxelCount() const;
@@ -1029,6 +1030,18 @@ InternalNode<ChildT, Log2Dim>::nodeCount(std::vector<Index32> &vec) const
     vec[ChildNodeType::LEVEL] += count;
 }
 
+template<typename ChildT, Index Log2Dim>
+inline void
+InternalNode<ChildT, Log2Dim>::activeTileCount(std::vector<Index32>& vec) const
+{
+    assert(vec.size() > ChildNodeType::LEVEL);
+    const auto countTile = mValueMask.countOn();
+    const auto countChild = mChildMask.countOn();
+    if (ChildNodeType::LEVEL > 0 && countChild > 0) {
+        for (auto iter = this->cbeginChildOn(); iter; ++iter) iter->activeTileCount(vec);
+    }
+    vec[ChildNodeType::LEVEL] += countTile;
+}
 
 template<typename ChildT, Index Log2Dim>
 inline Index32

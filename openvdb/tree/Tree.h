@@ -114,6 +114,15 @@ public:
     /// of this vector corresponds to the height (or depth) of this tree.
     virtual std::vector<Index32> nodeCount() const = 0;
 #endif
+#if OPENVDB_ABI_VERSION_NUMBER >= 8
+    /// Return in @a vec the active tile count for each level. The number of active tiles at level NodeType
+    /// is given as element NodeType::LEVEL in the vector. Thus, the size
+    /// of this vector corresponds to the height (or depth) of this tree.
+    /// @note While nodeCount() returns the number of allocated nodes at each level,
+    /// regions of the tree may have data but not have nodes because
+    /// they have activated constant regions.
+    virtual void activeTileCount(std::vector<Index32>& vec) const = 0;
+#endif
     /// Return the number of non-leaf nodes.
     virtual Index32 nonLeafCount() const = 0;
     /// Return the number of active voxels stored in leaf nodes.
@@ -344,6 +353,20 @@ public:
         std::vector<Index32> vec(DEPTH, 0);
         mRoot.nodeCount( vec );
         return vec;// Named Return Value Optimization
+    }
+#endif
+#if OPENVDB_ABI_VERSION_NUMBER >= 8
+    /// Return in @a vec the active tile count for each level. The number of active tiles at level NodeType
+    /// is given as element NodeType::LEVEL in the vector. Thus, the size
+    /// of this vector corresponds to the height (or depth) of this tree.
+    /// @note While nodeCount() returns the number of allocated nodes at each level,
+    /// regions of the tree may have data but not have nodes because
+    /// they have activated constant regions.
+    void activeTileCount(std::vector<Index32>& vec) const override
+    {
+        vec.assign(DEPTH, 0);
+        vec.shrink_to_fit();
+        mRoot.activeTileCount(vec);
     }
 #endif
     /// Return the number of non-leaf nodes.
