@@ -68,6 +68,7 @@ option(OPENVDB_BUILD_HOUDINI_ABITESTS "Build the Houdini ABI tests" OFF)
 option(OPENVDB_INSTALL_HOUDINI_PYTHONRC [=[Install a Houdini startup script that sets
 the visibilty of OpenVDB nodes and their native equivalents.]=] OFF)
 option(OPENVDB_BUILD_MAYA_PLUGIN "Build the Maya plugin" OFF)
+option(OPENVDB_USE_DELAYED_LOADING "Build the core OpenVDB library with delayed-loading." ON)
 option(OPENVDB_ENABLE_RPATH "Build with RPATH information" ON)
 option(OPENVDB_CXX_STRICT "Enable or disable pre-defined compiler warnings" OFF)
 option(OPENVDB_CODE_COVERAGE "Enable code coverage. This also overrides CMAKE_BUILD_TYPE to Debug" OFF)
@@ -175,6 +176,7 @@ mark_as_advanced(
   USE_MAYA
   USE_LOG4CPLUS
   USE_CCACHE
+  OPENVDB_USE_DELAYED_LOADING
   OPENVDB_BUILD_HOUDINI_ABITESTS
   DISABLE_DEPENDENCY_VERSION_CHECKS
   DISABLE_CMAKE_SEARCH_PATHS

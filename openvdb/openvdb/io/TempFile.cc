@@ -3,6 +3,8 @@
 
 /// @file TempFile.cc
 
+#ifdef OPENVDB_USE_DELAYED_LOADING
+
 #include "TempFile.h"
 
 #include <openvdb/Exceptions.h>
@@ -134,3 +136,5 @@ void TempFile::close() { mImpl->close(); }
 } // namespace io
 } // namespace OPENVDB_VERSION_NAME
 } // namespace openvdb
+
+#endif // OPENVDB_USE_DELAYED_LOADING
