@@ -26,6 +26,8 @@ Version 7.1.1 - In Development
       doxygen documentation.
     - Added USE_ZLIB compiler flag that enables zlib compression and defaults
       to on.
+    - Added OPENVDB_USE_DELAYED_LOAD flag that enables delayed loading and
+      defaults to on.
 
 Version 7.1.0 - August 13, 2020
 
