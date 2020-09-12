@@ -32,6 +32,8 @@ Build:
   doxygen documentation.
 - Added USE_ZLIB compiler flag that enables zlib compression and defaults
   to on.
+- Added OPENVDB_USE_DELAYED_LOAD flag that enables delayed loading and
+  defaults to on.
 
 
 @htmlonly <a name="v7_1_0_changes"></a>@endhtmlonly
@@ -1794,7 +1796,7 @@ Houdini:
   modified or deleted, so for safety,
   @vdblink::io::File::open() File::open@endlink automatically makes
   private copies of source files that are smaller than a user-specified limit
-  (see @vdblink::io::File::setCopyMaxBytes() File::setCopyMaxBytes@endlink).
+  (see io::File::setCopyMaxBytes()).
   The limit can be set to zero to disable copying, but if it cannot be
   guaranteed that a file will not be modified, then it is best not to enable
   delayed loading for that file.

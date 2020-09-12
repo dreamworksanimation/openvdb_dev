@@ -58,6 +58,8 @@ This will define the following variables:
   True if the OpenVDB Library has been built with log4cplus support
 ``OpenVDB_USES_EXR``
   True if the OpenVDB Library has been built with openexr support
+``OpenVDB_USES_DELAYED_LOADING``
+  True if the OpenVDB Library has been built with delayed-loading
 ``OpenVDB_ABI``
   Set if this module was able to determine the ABI number the located
   OpenVDB Library was built against. Unset otherwise.
@@ -484,6 +486,7 @@ set(OpenVDB_USES_BLOSC ${USE_BLOSC})
 set(OpenVDB_USES_ZLIB ${USE_ZLIB})
 set(OpenVDB_USES_LOG4CPLUS ${USE_LOG4CPLUS})
 set(OpenVDB_USES_EXR ${USE_EXR})
+set(OpenVDB_USES_DELAYED_LOADING ${OPENVDB_USE_DELAYED_LOADING})
 set(OpenVDB_DEFINITIONS)
 
 if(WIN32)
@@ -541,6 +544,11 @@ if(NOT OPENVDB_USE_STATIC_LIBS)
     if(NOT ${_HAS_DEP} EQUAL -1)
       set(OpenVDB_USES_EXR ON)
     endif()
+
+    string(FIND ${PREREQUISITE} "boost_iostreams" _HAS_DEP)
+    if(NOT ${_HAS_DEP} EQUAL -1)
+      set(OpenVDB_USES_DELAYED_LOADING ON)
+    endif()
   endforeach()
 
   unset(_OPENVDB_PREREQUISITE_LIST)
@@ -584,11 +592,14 @@ endif()
 # include paths from shared installs (including houdini) may pull in the wrong
 # headers
 
-set(_OPENVDB_VISIBLE_DEPENDENCIES
-  Boost::iostreams
-  Boost::system
-  IlmBase::Half
-)
+set(_OPENVDB_VISIBLE_DEPENDENCIES Boost::system)
+
+if(OpenVDB_USES_DELAYED_LOADING)
+  list(APPEND _OPENVDB_VISIBLE_DEPENDENCIES Boost::iostreams)
+  list(APPEND OpenVDB_DEFINITIONS OPENVDB_USE_DELAYED_LOADING)
+endif()
+
+list(APPEND _OPENVDB_VISIBLE_DEPENDENCIES IlmBase::Half)
 
 if(OpenVDB_ABI)
   list(APPEND OpenVDB_DEFINITIONS OPENVDB_ABI_VERSION_NUMBER=${OpenVDB_ABI})

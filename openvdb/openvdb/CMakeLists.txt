@@ -110,7 +110,10 @@ if(OPENVDB_CORE_SHARED AND NOT Boost_USE_STATIC_LIBS)
   set(Boost_USE_STATIC_LIBS OFF)
 endif()
 
-find_package(Boost ${MINIMUM_BOOST_VERSION} REQUIRED COMPONENTS iostreams system)
+find_package(Boost ${MINIMUM_BOOST_VERSION} REQUIRED COMPONENTS system)
+if(OPENVDB_USE_DELAYED_LOADING)
+  find_package(Boost ${MINIMUM_BOOST_VERSION} REQUIRED COMPONENTS iostreams)
+endif()
 
 if(OPENVDB_FUTURE_DEPRECATION AND FUTURE_MINIMUM_BOOST_VERSION)
   if(${Boost_LIB_VERSION} VERSION_LESS FUTURE_MINIMUM_BOOST_VERSION)
@@ -129,11 +132,13 @@ endif()
 # include paths from shared installs (including houdini) may pull in the wrong
 # headers
 
-set(OPENVDB_CORE_DEPENDENT_LIBS
-  Boost::iostreams
-  Boost::system
-  IlmBase::Half
-)
+set(OPENVDB_CORE_DEPENDENT_LIBS Boost::system)
+
+if(OPENVDB_USE_DELAYED_LOADING)
+  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS Boost::iostreams)
+endif()
+
+list(APPEND OPENVDB_CORE_DEPENDENT_LIBS IlmBase::Half)
 
 if(WIN32)
   # Boost headers contain #pragma commands on Windows which causes Boost
@@ -425,6 +430,9 @@ if(USE_EXR)
 endif()
 if(USE_LOG4CPLUS)
   list(APPEND OPENVDB_CORE_PUBLIC_DEFINES -DOPENVDB_USE_LOG4CPLUS)
+endif()
+if(OPENVDB_USE_DELAYED_LOADING)
+  list(APPEND OPENVDB_CORE_PUBLIC_DEFINES -DOPENVDB_USE_DELAYED_LOADING)
 endif()
 
 ##########################################################################

@@ -350,7 +350,9 @@ TestPointCount::testGroup()
 
             GroupFilter groupFilter("test", attributeSet);
 
-            bool inCoreOnly = true;
+            bool inCoreOnly;
+#ifdef OPENVDB_USE_DELAYED_LOADING
+            inCoreOnly = true;
 
             CPPUNIT_ASSERT_EQUAL(pointCount(inputTree, NullFilter(), inCoreOnly), Index64(0));
             CPPUNIT_ASSERT_EQUAL(pointCount(inputTree, ActiveFilter(), inCoreOnly), Index64(0));
@@ -360,6 +362,7 @@ TestPointCount::testGroup()
                 groupFilter, ActiveFilter()), inCoreOnly), Index64(0));
             CPPUNIT_ASSERT_EQUAL(pointCount(inputTree, BinaryFilter<GroupFilter, InactiveFilter>(
                 groupFilter, InactiveFilter()), inCoreOnly), Index64(0));
+#endif
 
             inCoreOnly = false;
 
@@ -570,6 +573,7 @@ TestPointCount::testOffsets()
         fileOut.write(grids);
     }
 
+#ifdef OPENVDB_USE_DELAYED_LOADING
     // test point offsets for a delay-loaded grid
     {
         io::File fileIn(filename);
@@ -612,6 +616,8 @@ TestPointCount::testOffsets()
         CPPUNIT_ASSERT_EQUAL(offsets[3], Index64(5));
         CPPUNIT_ASSERT_EQUAL(total, Index64(5));
     }
+#endif
+
     std::remove(filename.c_str());
 }
 

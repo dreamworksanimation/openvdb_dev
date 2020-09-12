@@ -8,6 +8,7 @@
 #include <openvdb/math/Transform.h>
 #include <openvdb/io/File.h>
 
+#ifdef OPENVDB_USE_DELAYED_LOADING
 #ifdef __clang__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-macros"
@@ -19,13 +20,6 @@
 #endif
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
-#include <tbb/tick_count.h>
-#include <tbb/atomic.h>
-
-#include <cstdio> // for std::remove()
-#include <fstream>
-#include <sstream>
-#include <iostream>
 
 #ifdef _MSC_VER
 #include <boost/interprocess/detail/os_file_functions.hpp> // open_existing_file(), close_file()
@@ -37,8 +31,18 @@ namespace boost { namespace interprocess { namespace detail {} namespace ipcdeta
 #include <sys/types.h> // for struct stat
 #include <sys/stat.h> // for stat()
 #endif
+#endif // OPENVDB_USE_DELAYED_LOADING
+
+#include <tbb/tick_count.h>
+#include <tbb/atomic.h>
+
+#include <cstdio> // for std::remove()
+#include <fstream>
+#include <sstream>
+#include <iostream>
 
 
+#ifdef OPENVDB_USE_DELAYED_LOADING
 /// @brief io::MappedFile has a private constructor, so declare a class that acts as the friend
 class TestMappedFile
 {
@@ -48,6 +52,7 @@ public:
         return openvdb::SharedPtr<openvdb::io::MappedFile>(new openvdb::io::MappedFile(filename));
     }
 };
+#endif
 
 
 /// @brief Functionality similar to openvdb::util::CpuTimer except with prefix padding and no decimals.
@@ -124,7 +129,9 @@ public:
     CPPUNIT_TEST(testAccessorEval);
     CPPUNIT_TEST(testAttributeHandle);
     CPPUNIT_TEST(testStrided);
+#ifdef OPENVDB_USE_DELAYED_LOADING
     CPPUNIT_TEST(testDelayedLoad);
+#endif
     CPPUNIT_TEST(testDefaultValue);
     CPPUNIT_TEST(testQuaternions);
     CPPUNIT_TEST(testMatrices);
@@ -139,7 +146,9 @@ public:
     void testAccessorEval();
     void testAttributeHandle();
     void testStrided();
+#ifdef OPENVDB_USE_DELAYED_LOADING
     void testDelayedLoad();
+#endif
     void testDefaultValue();
     void testQuaternions();
     void testMatrices();
@@ -1427,6 +1436,7 @@ TestAttributeArray::testStrided()
     }
 }
 
+#ifdef OPENVDB_USE_DELAYED_LOADING
 void
 TestAttributeArray::testDelayedLoad()
 {
@@ -2222,6 +2232,7 @@ TestAttributeArray::testDelayedLoad()
         std::remove(filename.c_str());
     }
 }
+#endif
 
 
 void

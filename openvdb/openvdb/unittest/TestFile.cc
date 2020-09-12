@@ -669,8 +669,10 @@ TestFile::testWriteInstancedGrids()
     CPPUNIT_ASSERT(grid.get() != nullptr);
     density = gridPtrCast<Int32Grid>(grid)->treePtr();
     CPPUNIT_ASSERT(density.get() != nullptr);
+#ifdef OPENVDB_USE_DELAYED_LOADING
     CPPUNIT_ASSERT(density->unallocatedLeafCount() > 0);
     CPPUNIT_ASSERT_EQUAL(density->leafCount(), density->unallocatedLeafCount());
+#endif // OPENVDB_USE_DELAYED_LOADING
     grid = findGridByName(*grids, "density_copy");
     CPPUNIT_ASSERT(grid.get() != nullptr);
     CPPUNIT_ASSERT(gridPtrCast<Int32Grid>(grid)->treePtr().get() != nullptr);
