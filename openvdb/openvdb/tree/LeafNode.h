@@ -6,7 +6,6 @@
 
 #include <openvdb/Types.h>
 #include <openvdb/util/NodeMasks.h>
-#include <openvdb/io/Compression.h> // for io::readData(), etc.
 #include "Iterator.h"
 #include "LeafBuffer.h"
 #include <algorithm> // for std::nth_element()
@@ -218,23 +217,35 @@ protected:
         ValueT& getItem(Index pos) const { return this->parent().getValue(pos); }
         ValueT& getValue() const { return this->parent().getValue(this->pos()); }
 
-        // Note: setItem() can't be called on const iterators.
         void setItem(Index pos, const ValueT& value) const
         {
             this->parent().setValueOnly(pos, value);
         }
-        // Note: setValue() can't be called on const iterators.
         void setValue(const ValueT& value) const
         {
             this->parent().setValueOnly(this->pos(), value);
         }
 
-        // Note: modifyItem() can't be called on const iterators.
         template<typename ModifyOp>
         void modifyItem(Index n, const ModifyOp& op) const { this->parent().modifyValue(n, op); }
-        // Note: modifyValue() can't be called on const iterators.
         template<typename ModifyOp>
         void modifyValue(const ModifyOp& op) const { this->parent().modifyValue(this->pos(), op); }
+    };
+
+    template<typename MaskIterT, typename NodeT, typename ValueT, typename TagT>
+    struct ConstValueIter:
+        // Derives from SparseIteratorBase, but can also be used as a dense iterator,
+        // if MaskIterT is a dense mask iterator type.
+        public SparseIteratorBase<
+            MaskIterT, ConstValueIter<MaskIterT, NodeT, ValueT, TagT>, NodeT, ValueT>
+    {
+        using BaseT = SparseIteratorBase<MaskIterT, ConstValueIter, NodeT, ValueT>;
+
+        ConstValueIter() {}
+        ConstValueIter(const MaskIterT& iter, NodeT* parent): BaseT(iter, parent) {}
+
+        ValueT& getItem(Index pos) const { return this->parent().getValue(pos); }
+        ValueT& getValue() const { return this->parent().getValue(this->pos()); }
     };
 
     /// Leaf nodes have no children, so their child iterators have no get/set accessors.
@@ -264,29 +275,43 @@ protected:
             return false; // no child
         }
 
-        // Note: setItem() can't be called on const iterators.
-        //void setItem(Index pos, void* child) const {}
-
-        // Note: unsetItem() can't be called on const iterators.
         void unsetItem(Index pos, const ValueT& value) const
         {
             this->parent().setValueOnly(pos, value);
         }
     };
 
+    template<typename NodeT, typename ValueT, typename TagT>
+    struct ConstDenseIter: public DenseIteratorBase<
+        MaskDenseIterator, ConstDenseIter<NodeT, ValueT, TagT>, NodeT, /*ChildT=*/void, ValueT>
+    {
+        using BaseT = DenseIteratorBase<MaskDenseIterator, ConstDenseIter, NodeT, void, ValueT>;
+        using NonConstValueT = typename BaseT::NonConstValueType;
+
+        ConstDenseIter() {}
+        ConstDenseIter(const MaskDenseIterator& iter, NodeT* parent): BaseT(iter, parent) {}
+
+        bool getItem(Index pos, void*& child, NonConstValueT& value) const
+        {
+            value = this->parent().getValue(pos);
+            child = nullptr;
+            return false; // no child
+        }
+    };
+
 public:
     using ValueOnIter = ValueIter<MaskOnIterator, LeafNode, const ValueType, ValueOn>;
-    using ValueOnCIter = ValueIter<MaskOnIterator, const LeafNode, const ValueType, ValueOn>;
+    using ValueOnCIter = ConstValueIter<MaskOnIterator, const LeafNode, const ValueType, ValueOn>;
     using ValueOffIter = ValueIter<MaskOffIterator, LeafNode, const ValueType, ValueOff>;
-    using ValueOffCIter = ValueIter<MaskOffIterator,const LeafNode,const ValueType,ValueOff>;
+    using ValueOffCIter = ConstValueIter<MaskOffIterator,const LeafNode,const ValueType,ValueOff>;
     using ValueAllIter = ValueIter<MaskDenseIterator, LeafNode, const ValueType, ValueAll>;
-    using ValueAllCIter = ValueIter<MaskDenseIterator,const LeafNode,const ValueType,ValueAll>;
+    using ValueAllCIter = ConstValueIter<MaskDenseIterator,const LeafNode,const ValueType,ValueAll>;
     using ChildOnIter = ChildIter<MaskOnIterator, LeafNode, ChildOn>;
     using ChildOnCIter = ChildIter<MaskOnIterator, const LeafNode, ChildOn>;
     using ChildOffIter = ChildIter<MaskOffIterator, LeafNode, ChildOff>;
     using ChildOffCIter = ChildIter<MaskOffIterator, const LeafNode, ChildOff>;
     using ChildAllIter = DenseIter<LeafNode, ValueType, ChildAll>;
-    using ChildAllCIter = DenseIter<const LeafNode, const ValueType, ChildAll>;
+    using ChildAllCIter = ConstDenseIter<const LeafNode, const ValueType, ChildAll>;
 
     ValueOnCIter  cbeginValueOn() const { return ValueOnCIter(mValueMask.beginOn(), this); }
     ValueOnCIter   beginValueOn() const { return ValueOnCIter(mValueMask.beginOn(), this); }
@@ -1010,16 +1035,6 @@ LeafNode<T, Log2Dim>::~LeafNode()
 }
 
 
-template<typename T, Index Log2Dim>
-inline std::string
-LeafNode<T, Log2Dim>::str() const
-{
-    std::ostringstream ostr;
-    ostr << "LeafNode @" << mOrigin << ": " << mBuffer;
-    return ostr.str();
-}
-
-
 ////////////////////////////////////////
 
 
@@ -1135,88 +1150,6 @@ LeafNode<T, Log2Dim>::setValueOnly(Index offset, const ValueType& val)
 
 
 template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::clip(const CoordBBox& clipBBox, const T& background)
-{
-    CoordBBox nodeBBox = this->getNodeBoundingBox();
-    if (!clipBBox.hasOverlap(nodeBBox)) {
-        // This node lies completely outside the clipping region.  Fill it with the background.
-        this->fill(background, /*active=*/false);
-    } else if (clipBBox.isInside(nodeBBox)) {
-        // This node lies completely inside the clipping region.  Leave it intact.
-        return;
-    }
-
-    // This node isn't completely contained inside the clipping region.
-    // Set any voxels that lie outside the region to the background value.
-
-    // Construct a boolean mask that is on inside the clipping region and off outside it.
-    NodeMaskType mask;
-    nodeBBox.intersect(clipBBox);
-    Coord xyz;
-    int &x = xyz.x(), &y = xyz.y(), &z = xyz.z();
-    for (x = nodeBBox.min().x(); x <= nodeBBox.max().x(); ++x) {
-        for (y = nodeBBox.min().y(); y <= nodeBBox.max().y(); ++y) {
-            for (z = nodeBBox.min().z(); z <= nodeBBox.max().z(); ++z) {
-                mask.setOn(static_cast<Index32>(this->coordToOffset(xyz)));
-            }
-        }
-    }
-
-    // Set voxels that lie in the inactive region of the mask (i.e., outside
-    // the clipping region) to the background value.
-    for (MaskOffIterator maskIter = mask.beginOff(); maskIter; ++maskIter) {
-        this->setValueOff(maskIter.pos(), background);
-    }
-}
-
-
-////////////////////////////////////////
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::fill(const CoordBBox& bbox, const ValueType& value, bool active)
-{
-    if (!this->allocate()) return;
-
-    auto clippedBBox = this->getNodeBoundingBox();
-    clippedBBox.intersect(bbox);
-    if (!clippedBBox) return;
-
-    for (Int32 x = clippedBBox.min().x(); x <= clippedBBox.max().x(); ++x) {
-        const Index offsetX = (x & (DIM-1u)) << 2*Log2Dim;
-        for (Int32 y = clippedBBox.min().y(); y <= clippedBBox.max().y(); ++y) {
-            const Index offsetXY = offsetX + ((y & (DIM-1u)) << Log2Dim);
-            for (Int32 z = clippedBBox.min().z(); z <= clippedBBox.max().z(); ++z) {
-                const Index offset = offsetXY + (z & (DIM-1u));
-                mBuffer[offset] = value;
-                mValueMask.set(offset, active);
-            }
-        }
-    }
-}
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::fill(const ValueType& value)
-{
-    mBuffer.fill(value);
-}
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::fill(const ValueType& value, bool active)
-{
-    mBuffer.fill(value);
-    mValueMask.set(active);
-}
-
-
-////////////////////////////////////////
-
-
-template<typename T, Index Log2Dim>
 template<typename DenseT>
 inline void
 LeafNode<T, Log2Dim>::copyToDense(const CoordBBox& bbox, DenseT& dense) const
@@ -1282,184 +1215,12 @@ LeafNode<T, Log2Dim>::copyFromDense(const CoordBBox& bbox, const DenseT& dense,
 
 
 template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::readTopology(std::istream& is, bool /*fromHalf*/)
-{
-    mValueMask.load(is);
-}
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::writeTopology(std::ostream& os, bool /*toHalf*/) const
-{
-    mValueMask.save(os);
-}
-
-
-////////////////////////////////////////
-
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T,Log2Dim>::skipCompressedValues(bool seekable, std::istream& is, bool fromHalf)
-{
-    if (seekable) {
-        // Seek over voxel values.
-        io::readCompressedValues<ValueType, NodeMaskType>(
-            is, nullptr, SIZE, mValueMask, fromHalf);
-    } else {
-        // Read and discard voxel values.
-        Buffer temp;
-        io::readCompressedValues(is, temp.mData, SIZE, mValueMask, fromHalf);
-    }
-}
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T,Log2Dim>::readBuffers(std::istream& is, bool fromHalf)
-{
-    this->readBuffers(is, CoordBBox::inf(), fromHalf);
-}
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T,Log2Dim>::readBuffers(std::istream& is, const CoordBBox& clipBBox, bool fromHalf)
-{
-    SharedPtr<io::StreamMetadata> meta = io::getStreamMetadataPtr(is);
-    const bool seekable = meta && meta->seekable();
-
-    std::streamoff maskpos = is.tellg();
-
-    if (seekable) {
-        // Seek over the value mask.
-        mValueMask.seek(is);
-    } else {
-        // Read in the value mask.
-        mValueMask.load(is);
-    }
-
-    int8_t numBuffers = 1;
-    if (io::getFormatVersion(is) < OPENVDB_FILE_VERSION_NODE_MASK_COMPRESSION) {
-        // Read in the origin.
-        is.read(reinterpret_cast<char*>(&mOrigin), sizeof(Coord::ValueType) * 3);
-
-        // Read in the number of buffers, which should now always be one.
-        is.read(reinterpret_cast<char*>(&numBuffers), sizeof(int8_t));
-    }
-
-    CoordBBox nodeBBox = this->getNodeBoundingBox();
-    if (!clipBBox.hasOverlap(nodeBBox)) {
-        // This node lies completely outside the clipping region.
-        skipCompressedValues(seekable, is, fromHalf);
-        mValueMask.setOff();
-        mBuffer.setOutOfCore(false);
-    } else {
-        // If this node lies completely inside the clipping region and it is being read
-        // from a memory-mapped file, delay loading of its buffer until the buffer
-        // is actually accessed.  (If this node requires clipping, its buffer
-        // must be accessed and therefore must be loaded.)
-        io::MappedFile::Ptr mappedFile = io::getMappedFilePtr(is);
-        const bool delayLoad = ((mappedFile.get() != nullptr) && clipBBox.isInside(nodeBBox));
-
-        if (delayLoad) {
-            mBuffer.setOutOfCore(true);
-            mBuffer.mFileInfo = new typename Buffer::FileInfo;
-            mBuffer.mFileInfo->meta = meta;
-            mBuffer.mFileInfo->bufpos = is.tellg();
-            mBuffer.mFileInfo->mapping = mappedFile;
-            // Save the offset to the value mask, because the in-memory copy
-            // might change before the value buffer gets read.
-            mBuffer.mFileInfo->maskpos = maskpos;
-            // Skip over voxel values.
-            skipCompressedValues(seekable, is, fromHalf);
-        } else {
-            mBuffer.allocate();
-            io::readCompressedValues(is, mBuffer.mData, SIZE, mValueMask, fromHalf);
-            mBuffer.setOutOfCore(false);
-
-            // Get this tree's background value.
-            T background = zeroVal<T>();
-            if (const void* bgPtr = io::getGridBackgroundValuePtr(is)) {
-                background = *static_cast<const T*>(bgPtr);
-            }
-            this->clip(clipBBox, background);
-        }
-    }
-
-    if (numBuffers > 1) {
-        // Read in and discard auxiliary buffers that were created with earlier
-        // versions of the library.  (Auxiliary buffers are not mask compressed.)
-        const bool zipped = io::getDataCompression(is) & io::COMPRESS_ZIP;
-        Buffer temp;
-        for (int i = 1; i < numBuffers; ++i) {
-            if (fromHalf) {
-                io::HalfReader<io::RealToHalf<T>::isReal, T>::read(is, temp.mData, SIZE, zipped);
-            } else {
-                io::readData<T>(is, temp.mData, SIZE, zipped);
-            }
-        }
-    }
-
-    // increment the leaf number
-    if (meta)   meta->setLeaf(meta->leaf() + 1);
-}
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::writeBuffers(std::ostream& os, bool toHalf) const
-{
-    // Write out the value mask.
-    mValueMask.save(os);
-
-    mBuffer.loadValues();
-
-    io::writeCompressedValues(os, mBuffer.mData, SIZE,
-        mValueMask, /*childMask=*/NodeMaskType(), toHalf);
-}
-
-
-////////////////////////////////////////
-
-
-template<typename T, Index Log2Dim>
 inline bool
 LeafNode<T, Log2Dim>::operator==(const LeafNode& other) const
 {
     return mOrigin == other.mOrigin &&
            mValueMask == other.valueMask() &&
            mBuffer == other.mBuffer;
-}
-
-
-template<typename T, Index Log2Dim>
-inline Index64
-LeafNode<T, Log2Dim>::memUsage() const
-{
-    // Use sizeof(*this) to capture alignment-related padding
-    // (but note that sizeof(*this) includes sizeof(mBuffer)).
-    return sizeof(*this) + mBuffer.memUsage() - sizeof(mBuffer);
-}
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::evalActiveBoundingBox(CoordBBox& bbox, bool visitVoxels) const
-{
-    CoordBBox this_bbox = this->getNodeBoundingBox();
-    if (bbox.isInside(this_bbox)) return;//this LeafNode is already enclosed in the bbox
-    if (ValueOnCIter iter = this->cbeginValueOn()) {//any active values?
-        if (visitVoxels) {//use voxel granularity?
-            this_bbox.reset();
-            for(; iter; ++iter) this_bbox.expand(this->offsetToLocalCoord(iter.pos()));
-            this_bbox.translate(this->origin());
-        }
-        bbox.expand(this_bbox);
-    }
 }
 
 
@@ -1472,107 +1233,6 @@ LeafNode<T, Log2Dim>::hasSameTopology(const LeafNode<OtherType, OtherLog2Dim>* o
     return (Log2Dim == OtherLog2Dim && mValueMask == other->getValueMask());
 }
 
-template<typename T, Index Log2Dim>
-inline bool
-LeafNode<T, Log2Dim>::isConstant(ValueType& firstValue,
-                                 bool& state,
-                                 const ValueType& tolerance) const
-{
-    if (!mValueMask.isConstant(state)) return false;// early termination
-    firstValue = mBuffer[0];
-    for (Index i = 1; i < SIZE; ++i) {
-        if ( !math::isApproxEqual(mBuffer[i], firstValue, tolerance) ) return false;// early termination
-    }
-    return true;
-}
-
-template<typename T, Index Log2Dim>
-inline bool
-LeafNode<T, Log2Dim>::isConstant(ValueType& minValue,
-                                 ValueType& maxValue,
-                                 bool& state,
-                                 const ValueType& tolerance) const
-{
-    if (!mValueMask.isConstant(state)) return false;// early termination
-    minValue = maxValue = mBuffer[0];
-    for (Index i = 1; i < SIZE; ++i) {
-        const T& v = mBuffer[i];
-        if (v < minValue) {
-            if ((maxValue - v) > tolerance) return false;// early termination
-            minValue = v;
-        } else if (v > maxValue) {
-            if ((v - minValue) > tolerance) return false;// early termination
-            maxValue = v;
-        }
-    }
-    return true;
-}
-
-template<typename T, Index Log2Dim>
-inline T
-LeafNode<T, Log2Dim>::medianAll(T *tmp) const
-{
-    std::unique_ptr<T[]> data(nullptr);
-    if (tmp == nullptr) {//allocate temporary storage
-        data.reset(new T[NUM_VALUES]);
-        tmp = data.get();
-    }
-    if (tmp != mBuffer.data()) {
-        const T* src = mBuffer.data();
-        for (T* dst = tmp; dst-tmp < NUM_VALUES;) *dst++ = *src++;
-    }
-    static const size_t midpoint = (NUM_VALUES - 1) >> 1;
-    std::nth_element(tmp, tmp + midpoint, tmp + NUM_VALUES);
-    return tmp[midpoint];
-}
-
-template<typename T, Index Log2Dim>
-inline Index
-LeafNode<T, Log2Dim>::medianOn(T &value, T *tmp) const
-{
-    const Index count = mValueMask.countOn();
-    if (count == NUM_VALUES) {//special case: all voxels are active
-        value = this->medianAll(tmp);
-        return NUM_VALUES;
-    } else if (count == 0) {
-        return 0;
-    }
-    std::unique_ptr<T[]> data(nullptr);
-    if (tmp == nullptr) {//allocate temporary storage
-        data.reset(new T[count]);// 0 < count < NUM_VALUES
-        tmp = data.get();
-    }
-    for (auto iter=this->cbeginValueOn(); iter; ++iter) *tmp++ = *iter;
-    T *begin = tmp - count;
-    const size_t midpoint = (count - 1) >> 1;
-    std::nth_element(begin, begin + midpoint, tmp);
-    value = begin[midpoint];
-    return count;
-}
-
-template<typename T, Index Log2Dim>
-inline Index
-LeafNode<T, Log2Dim>::medianOff(T &value, T *tmp) const
-{
-    const Index count = mValueMask.countOff();
-    if (count == NUM_VALUES) {//special case: all voxels are inactive
-        value = this->medianAll(tmp);
-        return NUM_VALUES;
-    } else if (count == 0) {
-        return 0;
-    }
-    std::unique_ptr<T[]> data(nullptr);
-    if (tmp == nullptr) {//allocate temporary storage
-        data.reset(new T[count]);// 0 < count < NUM_VALUES
-        tmp = data.get();
-    }
-    for (auto iter=this->cbeginValueOff(); iter; ++iter) *tmp++ = *iter;
-    T *begin = tmp - count;
-    const size_t midpoint = (count - 1) >> 1;
-    std::nth_element(begin, begin + midpoint, tmp);
-    value = begin[midpoint];
-    return count;
-}
 
 ////////////////////////////////////////
 
@@ -1604,26 +1264,6 @@ LeafNode<T, Log2Dim>::addTileAndCache(Index level, const Coord& xyz,
 
 
 ////////////////////////////////////////
-
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::resetBackground(const ValueType& oldBackground,
-                                      const ValueType& newBackground)
-{
-    if (!this->allocate()) return;
-
-    typename NodeMaskType::OffIterator iter;
-    // For all inactive values...
-    for (iter = this->mValueMask.beginOff(); iter; ++iter) {
-        ValueType &inactiveValue = mBuffer[iter.pos()];
-        if (math::isApproxEqual(inactiveValue, oldBackground)) {
-            inactiveValue = newBackground;
-        } else if (math::isApproxEqual(inactiveValue, math::negative(oldBackground))) {
-            inactiveValue = math::negative(newBackground);
-        }
-    }
-}
 
 
 template<typename T, Index Log2Dim>
@@ -1699,17 +1339,6 @@ LeafNode<T, Log2Dim>::topologyDifference(const LeafNode<OtherType, Log2Dim>& oth
                                          const ValueType&)
 {
     mValueMask &= !other.valueMask();
-}
-
-template<typename T, Index Log2Dim>
-inline void
-LeafNode<T, Log2Dim>::negate()
-{
-    if (!this->allocate()) return;
-
-    for (Index i = 0; i < SIZE; ++i) {
-        mBuffer[i] = -mBuffer[i];
-    }
 }
 
 
@@ -1980,5 +1609,24 @@ operator<<(std::ostream& os, const typename LeafNode<T, Log2Dim>::Buffer& buf)
 
 // Specialization for LeafNodes with mask information only
 #include "LeafNodeMask.h"
+
+////////////////////////////////////////
+
+// suppress instantiation using extern template
+
+namespace openvdb {
+OPENVDB_USE_VERSION_NAMESPACE
+namespace OPENVDB_VERSION_NAME {
+
+#define OPENVDB_TREE4(T, N1, N2, N3, LeafT) \
+    extern template class LeafT<T, N3>;
+
+OPENVDB_TREE4_VOLUME_INITIALIZE()
+OPENVDB_TREE4_PRIVATE_INITIALIZE()
+
+#undef OPENVDB_TREE4
+
+} // namespace OPENVDB_VERSION_NAME
+} // namespace openvdb
 
 #endif // OPENVDB_TREE_LEAFNODE_HAS_BEEN_INCLUDED
