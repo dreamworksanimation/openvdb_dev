@@ -54,6 +54,7 @@ See the @subpage houdini "Houdini Cookbook" for help on implementing Houdini nod
 Contributors, please familiarize yourselves with our
 @subpage codingStyle "coding standards".
 
+<a href="../code_coverage/index.html">Code Coverage</a>
 
 
 @page overview OpenVDB Overview
