@@ -9,12 +9,13 @@ name: Sanitizers
 
 on:
   schedule:
-    # run this workflow every Monday 00:00 UTC
-    - cron:  '0 0 * * 1'
+    # run this workflow on the 1st and 15th (i.e. twice a month) at 00:00 UTC
+    - cron:  '0 0 1,15 * *'
+  workflow_dispatch:
 
 jobs:
-  linux-vfx:
-    runs-on: ubuntu-16.04
+  linux-sanitizers:
+    runs-on: ubuntu-latest
     name: linux-clang-sanitizer:${{ matrix.config.build }}
     container:
       image: aswf/ci-openvdb:2021
@@ -28,16 +29,43 @@ jobs:
           #- { build: 'lsan', cmake: '' } # asan encompasses and includes lsan
           #- { build: 'tsan', cmake: '' } # requires full stack rebuild for valid results (including libc++)
           #- { build: 'msan', cmake: '' } # requires full stack rebuild for valid results (including libc++)
-          #- { build: 'coverage', cmake: '' } # todo
       fail-fast: false
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: install_gtest
       run: ./ci/install_gtest.sh 1.8.0
     - name: build
-      run: ./ci/build.sh ${{ matrix.config.build }} 8 ON None "core,axcore,test,axtest" \
+      run: ./ci/build.sh ${{ matrix.config.build }} None ON None "core,axcore,test,axtest" \
         -DOPENVDB_CXX_STRICT=ON -DOPENVDB_CORE_STATIC=OFF -DOPENVDB_AX_STATIC=OFF \
-        -DCMAKE_VERBOSE_MAKEFILE=ON \
-        ${{ matrix.config.cmake }}
+        -DCMAKE_VERBOSE_MAKEFILE=ON ${{ matrix.config.cmake }}
     - name: test
-      run: ./ci/test.sh
+      run: cd build && ctest -V
+
+  linux-gcov:
+    runs-on: ubuntu-latest
+    container:
+      image: aswf/ci-openvdb:2021
+    env:
+      CXX: g++
+    steps:
+    - uses: actions/checkout@v2
+    - name: install_gtest
+      run: ./ci/install_gtest.sh 1.8.0
+    - name: install_gcovr
+      run: pip install gcovr
+    - name: build
+      run: ./ci/build.sh coverage None ON None "core,axcore,test,axtest" \
+        -DOPENVDB_CORE_STATIC=OFF -DOPENVDB_AX_STATIC=OFF \
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+    - name: test_and_gcov
+      run: |
+        cd build
+        ctest -V
+        make gcov_html
+    - name: deploy
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build/gcov_html
+        destination_dir: code_coverage
+        commit_message: "code coverage update"

@@ -47,3 +47,5 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: /usr/local/share/doc/OpenVDB/html
+        destination_dir: docs
+        commit_message: "doxygen documentation update"
